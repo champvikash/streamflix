@@ -13,6 +13,7 @@ interface Provider {
 
     val name: String
     val logo: String
+    val language: String
 
     suspend fun getHome(): List<Category>
 
@@ -44,6 +45,13 @@ interface Provider {
             SerienStreamProvider,
             TmdbProvider,
             SuperStreamProvider,
+            StreamingCommunityProvider,
+            AnimeWorldProvider,
+            AniWorldProvider,
+            RidomoviesProvider,
+            OtakufrProvider,
+            WiflixProvider,
+            MStreamProvider,
         )
     }
 }

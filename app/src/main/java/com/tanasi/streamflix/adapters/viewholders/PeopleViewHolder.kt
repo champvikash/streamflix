@@ -44,10 +44,18 @@ class PeopleViewHolder(
             setOnClickListener {
                 when (context.toActivity()?.getCurrentFragment()) {
                     is MovieMobileFragment -> findNavController().navigate(
-                        MovieMobileFragmentDirections.actionMovieToPeople(people.id)
+                        MovieMobileFragmentDirections.actionMovieToPeople(
+                            id = people.id,
+                            name = people.name,
+                            image = people.image,
+                        )
                     )
                     is TvShowMobileFragment -> findNavController().navigate(
-                        TvShowMobileFragmentDirections.actionTvShowToPeople(people.id)
+                        TvShowMobileFragmentDirections.actionTvShowToPeople(
+                            id = people.id,
+                            name = people.name,
+                            image = people.image,
+                        )
                     )
                 }
             }
@@ -70,10 +78,18 @@ class PeopleViewHolder(
             setOnClickListener {
                 when (context.toActivity()?.getCurrentFragment()) {
                     is MovieTvFragment -> findNavController().navigate(
-                        MovieTvFragmentDirections.actionMovieToPeople(people.id)
+                        MovieTvFragmentDirections.actionMovieToPeople(
+                            id = people.id,
+                            name = people.name,
+                            image = people.image,
+                        )
                     )
                     is TvShowTvFragment -> findNavController().navigate(
-                        TvShowTvFragmentDirections.actionTvShowToPeople(people.id)
+                        TvShowTvFragmentDirections.actionTvShowToPeople(
+                            id = people.id,
+                            name = people.name,
+                            image = people.image,
+                        )
                     )
                 }
             }

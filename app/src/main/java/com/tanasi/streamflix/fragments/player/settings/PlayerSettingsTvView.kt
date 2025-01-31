@@ -289,7 +289,7 @@ class PlayerSettingsTvView @JvmOverloads constructor(
                         }
 
                         is Settings.Subtitle.OpenSubtitles.Subtitle -> {
-                            settingsView.onOpenSubtitleSelected.invoke(item)
+                            settingsView.onOpenSubtitleSelected?.invoke(item)
                             settingsView.hide()
                         }
 
@@ -311,31 +311,31 @@ class PlayerSettingsTvView @JvmOverloads constructor(
                     is Settings -> {
                         when (item) {
                             Settings.Quality -> setImageDrawable(
-                                ContextCompat.getDrawable(context, R.drawable.ic_settings_quality)
+                                ContextCompat.getDrawable(context, R.drawable.ic_player_settings_quality)
                             )
                             Settings.Audio -> setImageDrawable(
-                                ContextCompat.getDrawable(context, R.drawable.ic_settings_audio)
+                                ContextCompat.getDrawable(context, R.drawable.ic_player_settings_audio)
                             )
                             Settings.Subtitle -> setImageDrawable(
                                 ContextCompat.getDrawable(
                                     context,
                                     when (Settings.Subtitle.selected) {
-                                        is Settings.Subtitle.TextTrackInformation -> R.drawable.ic_settings_subtitle_on
-                                        else -> R.drawable.ic_settings_subtitle_off
+                                        is Settings.Subtitle.TextTrackInformation -> R.drawable.ic_player_settings_subtitle_on
+                                        else -> R.drawable.ic_player_settings_subtitle_off
                                     }
                                 )
                             )
                             Settings.Speed -> setImageDrawable(
                                 ContextCompat.getDrawable(
                                     context,
-                                    R.drawable.ic_settings_playback_speed
+                                    R.drawable.ic_player_settings_playback_speed
                                 )
                             )
 
                             Settings.Server -> setImageDrawable(
                                 ContextCompat.getDrawable(
                                     context,
-                                    R.drawable.ic_settings_servers
+                                    R.drawable.ic_player_settings_servers
                                 )
                             )
                         }
@@ -406,7 +406,7 @@ class PlayerSettingsTvView @JvmOverloads constructor(
                     is Settings.Subtitle -> when (item) {
                         Settings.Subtitle.Style -> context.getString(R.string.player_settings_caption_style_label)
                         is Settings.Subtitle.None -> context.getString(R.string.player_settings_subtitles_off)
-                        is Settings.Subtitle.TextTrackInformation -> item.name
+                        is Settings.Subtitle.TextTrackInformation -> item.label
                         Settings.Subtitle.LocalSubtitles -> context.getString(R.string.player_settings_local_subtitles_label)
                         Settings.Subtitle.OpenSubtitles -> context.getString(R.string.player_settings_open_subtitles_label)
                     }
@@ -467,7 +467,7 @@ class PlayerSettingsTvView @JvmOverloads constructor(
                         }
                         Settings.Audio -> Settings.Audio.selected?.name
                         Settings.Subtitle -> when (val selected = Settings.Subtitle.selected) {
-                            is Settings.Subtitle.TextTrackInformation -> selected.name
+                            is Settings.Subtitle.TextTrackInformation -> selected.label
                             else -> context.getString(R.string.player_settings_subtitles_off)
                         }
                         Settings.Speed -> context.getString(Settings.Speed.selected.stringId)
@@ -476,6 +476,7 @@ class PlayerSettingsTvView @JvmOverloads constructor(
 
                     is Settings.Subtitle -> when (item) {
                         Settings.Subtitle.Style -> context.getString(R.string.player_settings_caption_style_sub_label)
+                        is Settings.Subtitle.TextTrackInformation -> item.language ?: ""
                         else -> ""
                     }
 

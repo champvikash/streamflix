@@ -3,7 +3,9 @@ package com.tanasi.streamflix.providers
 import com.tanasi.streamflix.adapters.AppAdapter
 import com.tanasi.streamflix.extractors.Extractor
 import com.tanasi.streamflix.extractors.MoflixExtractor
+import com.tanasi.streamflix.extractors.MoviesapiExtractor
 import com.tanasi.streamflix.extractors.MyFileStorageExtractor
+import com.tanasi.streamflix.extractors.TwoEmbedExtractor
 import com.tanasi.streamflix.extractors.VidsrcNetExtractor
 import com.tanasi.streamflix.extractors.VidsrcToExtractor
 import com.tanasi.streamflix.models.Category
@@ -24,6 +26,7 @@ object TmdbProvider : Provider {
     override val name = "TMDb"
     override val logo =
         "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Tmdb.new.logo.svg/1280px-Tmdb.new.logo.svg.png"
+    override val language = "en"
 
     override suspend fun getHome(): List<Category> {
         val categories = mutableListOf<Category>()
@@ -754,6 +757,10 @@ object TmdbProvider : Provider {
                 id = person.id.toString(),
                 name = person.name,
                 image = person.profilePath?.w500,
+                biography = person.biography,
+                placeOfBirth = person.placeOfBirth,
+                birthday = person.birthday,
+                deathday = person.deathday,
 
                 filmography = person.combinedCredits?.cast
                     ?.mapNotNull { multi ->
@@ -797,10 +804,12 @@ object TmdbProvider : Provider {
 
     override suspend fun getServers(id: String, videoType: Video.Type): List<Video.Server> {
         val servers = listOf(
-            VidsrcToExtractor().server(videoType),
+            TwoEmbedExtractor().server(videoType),
+            MoviesapiExtractor().server(videoType),
+            VidsrcNetExtractor().server(videoType),
             MyFileStorageExtractor().nowTvServer(videoType),
             MoflixExtractor().server(videoType),
-            VidsrcNetExtractor().server(videoType),
+            VidsrcToExtractor().server(videoType),
         )
 
         return servers

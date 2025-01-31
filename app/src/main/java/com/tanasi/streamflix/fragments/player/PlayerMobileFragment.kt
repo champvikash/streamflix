@@ -1,8 +1,10 @@
 package com.tanasi.streamflix.fragments.player
 
+import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -31,7 +33,7 @@ import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
-import androidx.media3.ui.PlayerView
+import androidx.media3.ui.PlayerControlView
 import androidx.media3.ui.SubtitleView
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
@@ -45,9 +47,9 @@ import com.tanasi.streamflix.models.Video
 import com.tanasi.streamflix.models.WatchItem
 import com.tanasi.streamflix.utils.MediaServer
 import com.tanasi.streamflix.utils.UserPreferences
-import com.tanasi.streamflix.utils.filterNotNullValues
 import com.tanasi.streamflix.utils.getFileName
 import com.tanasi.streamflix.utils.next
+import com.tanasi.streamflix.utils.plus
 import com.tanasi.streamflix.utils.setMediaServerId
 import com.tanasi.streamflix.utils.setMediaServers
 import com.tanasi.streamflix.utils.toSubtitleMimeType
@@ -63,7 +65,7 @@ class PlayerMobileFragment : Fragment() {
     private var _binding: FragmentPlayerMobileBinding? = null
     private val binding get() = _binding!!
 
-    private val PlayerView.controller
+    private val PlayerControlView.binding
         get() = ContentExoControllerMobileBinding.bind(this.findViewById(R.id.cl_exo_controller))
 
     private val args by navArgs<PlayerMobileFragmentArgs>()
@@ -93,12 +95,14 @@ class PlayerMobileFragment : Fragment() {
             MediaItem.SubtitleConfiguration.Builder(it.uri)
                 .setMimeType(it.mimeType)
                 .setLabel(it.label)
+                .setLanguage(it.language)
                 .setSelectionFlags(0)
                 .build()
         } ?: listOf()
         player.setMediaItem(
             MediaItem.Builder()
                 .setUri(player.currentMediaItem?.localConfiguration?.uri)
+                .setMimeType(player.currentMediaItem?.localConfiguration?.mimeType)
                 .setSubtitleConfigurations(currentSubtitleConfigurations
                         + MediaItem.SubtitleConfiguration.Builder(uri)
                     .setMimeType(fileName.toSubtitleMimeType())
@@ -190,13 +194,64 @@ class PlayerMobileFragment : Fragment() {
                         binding.settings.openSubtitles = state.subtitles
                     }
                     is PlayerViewModel.State.FailedLoadingSubtitles -> {}
+
+                    PlayerViewModel.State.DownloadingOpenSubtitle -> {}
+                    is PlayerViewModel.State.SuccessDownloadingOpenSubtitle -> {
+                        val fileName = state.uri.getFileName(requireContext()) ?: state.uri.toString()
+
+                        val currentPosition = player.currentPosition
+                        val currentSubtitleConfigurations = player.currentMediaItem?.localConfiguration?.subtitleConfigurations?.map {
+                            MediaItem.SubtitleConfiguration.Builder(it.uri)
+                                .setMimeType(it.mimeType)
+                                .setLabel(it.label)
+                                .setLanguage(it.language)
+                                .setSelectionFlags(0)
+                                .build()
+                        } ?: listOf()
+                        player.setMediaItem(
+                            MediaItem.Builder()
+                                .setUri(player.currentMediaItem?.localConfiguration?.uri)
+                                .setMimeType(player.currentMediaItem?.localConfiguration?.mimeType)
+                                .setSubtitleConfigurations(currentSubtitleConfigurations
+                                        + MediaItem.SubtitleConfiguration.Builder(state.uri)
+                                    .setMimeType(fileName.toSubtitleMimeType())
+                                    .setLabel(fileName)
+                                    .setLanguage(state.subtitle.languageName)
+                                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                                    .build()
+                                )
+                                .setMediaMetadata(player.mediaMetadata)
+                                .build()
+                        )
+                        UserPreferences.subtitleName = (state.subtitle.languageName ?: fileName).substringBefore(" ")
+                        player.seekTo(currentPosition)
+                        player.play()
+                    }
+                    is PlayerViewModel.State.FailedDownloadingOpenSubtitle -> {
+                        Toast.makeText(
+                            requireContext(),
+                            "${state.subtitle.subFileName}: ${state.error.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }
         }
     }
 
-    override fun onPause() {
-        super.onPause()
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean) {
+        binding.pvPlayer.useController = !isInPictureInPictureMode
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode)
+    }
+
+    fun onUserLeaveHint() {
+        if (::player.isInitialized && player.isPlaying) {
+            enterPIPMode()
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
         player.pause()
     }
 
@@ -255,15 +310,15 @@ class PlayerMobileFragment : Fragment() {
             setStyle(UserPreferences.captionStyle)
         }
 
-        binding.pvPlayer.controller.btnExoBack.setOnClickListener {
+        binding.pvPlayer.controller.binding.btnExoBack.setOnClickListener {
             findNavController().navigateUp()
         }
 
-        binding.pvPlayer.controller.tvExoTitle.text = args.title
+        binding.pvPlayer.controller.binding.tvExoTitle.text = args.title
 
-        binding.pvPlayer.controller.tvExoSubtitle.text = args.subtitle
+        binding.pvPlayer.controller.binding.tvExoSubtitle.text = args.subtitle
 
-        binding.pvPlayer.controller.btnExoExternalPlayer.setOnClickListener {
+        binding.pvPlayer.controller.binding.btnExoExternalPlayer.setOnClickListener {
             Toast.makeText(
                 requireContext(),
                 requireContext().getString(R.string.player_external_player_error_video),
@@ -271,7 +326,29 @@ class PlayerMobileFragment : Fragment() {
             ).show()
         }
 
-        binding.pvPlayer.controller.btnExoAspectRatio.setOnClickListener {
+        binding.pvPlayer.controller.binding.btnExoLock.setOnClickListener {
+            binding.pvPlayer.controller.binding.gControlsLock.visibility = View.GONE
+            binding.pvPlayer.controller.binding.btnExoUnlock.visibility = View.VISIBLE
+        }
+
+        binding.pvPlayer.controller.binding.btnExoUnlock.setOnClickListener {
+            binding.pvPlayer.controller.binding.gControlsLock.visibility = View.VISIBLE
+            binding.pvPlayer.controller.binding.btnExoUnlock.visibility = View.GONE
+        }
+
+        binding.pvPlayer.controller.binding.btnExoPictureInPicture.setOnClickListener {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                Toast.makeText(
+                    requireContext(),
+                    requireContext().getString(R.string.player_picture_in_picture_not_supported),
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                enterPIPMode()
+            }
+        }
+
+        binding.pvPlayer.controller.binding.btnExoAspectRatio.setOnClickListener {
             UserPreferences.playerResize = UserPreferences.playerResize.next()
             binding.pvPlayer.controllerShowTimeoutMs = binding.pvPlayer.controllerShowTimeoutMs
 
@@ -283,7 +360,7 @@ class PlayerMobileFragment : Fragment() {
             binding.pvPlayer.resizeMode = UserPreferences.playerResize.resizeMode
         }
 
-        binding.pvPlayer.controller.exoSettings.setOnClickListener {
+        binding.pvPlayer.controller.binding.exoSettings.setOnClickListener {
             binding.pvPlayer.controllerShowTimeoutMs = binding.pvPlayer.controllerShowTimeoutMs
             binding.settings.show()
         }
@@ -303,6 +380,10 @@ class PlayerMobileFragment : Fragment() {
                 )
             )
         }
+
+        binding.settings.setOnOpenSubtitleSelectedListener { subtitle ->
+            viewModel.downloadSubtitle(subtitle.openSubtitle)
+        }
     }
 
     private fun displayVideo(video: Video, server: Video.Server) {
@@ -310,18 +391,19 @@ class PlayerMobileFragment : Fragment() {
 
         httpDataSource.setDefaultRequestProperties(
             mapOf(
-                "Referer" to video.referer,
                 "User-Agent" to userAgent,
-            ).filterNotNullValues()
+            ) + (video.headers ?: emptyMap())
         )
 
         player.setMediaItem(
             MediaItem.Builder()
                 .setUri(Uri.parse(video.source))
+                .setMimeType(video.type)
                 .setSubtitleConfigurations(video.subtitles.map { subtitle ->
                     MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitle.file))
                         .setMimeType(subtitle.file.toSubtitleMimeType())
                         .setLabel(subtitle.label)
+                        .setSelectionFlags(if (subtitle.default) C.SELECTION_FLAG_DEFAULT else 0)
                         .build()
                 })
                 .setMediaMetadata(
@@ -332,7 +414,7 @@ class PlayerMobileFragment : Fragment() {
                 .build()
         )
 
-        binding.pvPlayer.controller.btnExoExternalPlayer.setOnClickListener {
+        binding.pvPlayer.controller.binding.btnExoExternalPlayer.setOnClickListener {
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(Uri.parse(video.source), "video/*")
 
@@ -384,14 +466,25 @@ class PlayerMobileFragment : Fragment() {
 
                     when (val videoType = args.videoType as Video.Type) {
                         is Video.Type.Movie -> {
-                            database.movieDao().update(watchItem as Movie)
+                            val movie = watchItem as Movie
+                            database.movieDao().update(movie)
                         }
 
                         is Video.Type.Episode -> {
+                            val episode = watchItem as Episode
                             if (player.hasFinished()) {
                                 database.episodeDao().resetProgressionFromEpisode(videoType.id)
                             }
-                            database.episodeDao().update(watchItem as Episode)
+                            database.episodeDao().update(episode)
+
+                            episode.tvShow?.let { tvShow ->
+                                database.tvShowDao().getById(tvShow.id)
+                            }?.let { tvShow ->
+                                database.tvShowDao().save(tvShow.copy().apply {
+                                    merge(tvShow)
+                                    isWatching = true
+                                })
+                            }
                         }
                     }
                 }
@@ -418,6 +511,16 @@ class PlayerMobileFragment : Fragment() {
 
         player.prepare()
         player.play()
+    }
+
+    private fun enterPIPMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            binding.pvPlayer.useController = false
+            requireActivity().enterPictureInPictureMode(
+                PictureInPictureParams.Builder()
+                    .build()
+            )
+        }
     }
 
 

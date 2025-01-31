@@ -29,7 +29,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerControlView
-import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
@@ -43,9 +42,9 @@ import com.tanasi.streamflix.models.Video
 import com.tanasi.streamflix.models.WatchItem
 import com.tanasi.streamflix.utils.MediaServer
 import com.tanasi.streamflix.utils.UserPreferences
-import com.tanasi.streamflix.utils.filterNotNullValues
 import com.tanasi.streamflix.utils.getFileName
 import com.tanasi.streamflix.utils.next
+import com.tanasi.streamflix.utils.plus
 import com.tanasi.streamflix.utils.setMediaServerId
 import com.tanasi.streamflix.utils.setMediaServers
 import com.tanasi.streamflix.utils.toSubtitleMimeType
@@ -61,14 +60,8 @@ class PlayerTvFragment : Fragment() {
     private var _binding: FragmentPlayerTvBinding? = null
     private val binding get() = _binding!!
 
-    private val PlayerView.controller
+    private val PlayerControlView.binding
         get() = ContentExoControllerTvBinding.bind(this.findViewById(R.id.cl_exo_controller))
-    private val PlayerView.isControllerVisible
-        get() = this.javaClass.getDeclaredField("controller").let {
-            it.isAccessible = true
-            val controller = it.get(this) as PlayerControlView
-            controller.isVisible
-        }
 
     private val args by navArgs<PlayerTvFragmentArgs>()
     private val database by lazy { AppDatabase.getInstance(requireContext()) }
@@ -97,12 +90,14 @@ class PlayerTvFragment : Fragment() {
             MediaItem.SubtitleConfiguration.Builder(it.uri)
                 .setMimeType(it.mimeType)
                 .setLabel(it.label)
+                .setLanguage(it.language)
                 .setSelectionFlags(0)
                 .build()
         } ?: listOf()
         player.setMediaItem(
             MediaItem.Builder()
                 .setUri(player.currentMediaItem?.localConfiguration?.uri)
+                .setMimeType(player.currentMediaItem?.localConfiguration?.mimeType)
                 .setSubtitleConfigurations(currentSubtitleConfigurations
                         + MediaItem.SubtitleConfiguration.Builder(uri)
                     .setMimeType(fileName.toSubtitleMimeType())
@@ -194,6 +189,46 @@ class PlayerTvFragment : Fragment() {
                         binding.settings.openSubtitles = state.subtitles
                     }
                     is PlayerViewModel.State.FailedLoadingSubtitles -> {}
+
+                    PlayerViewModel.State.DownloadingOpenSubtitle -> {}
+                    is PlayerViewModel.State.SuccessDownloadingOpenSubtitle -> {
+                        val fileName = state.uri.getFileName(requireContext()) ?: state.uri.toString()
+
+                        val currentPosition = player.currentPosition
+                        val currentSubtitleConfigurations = player.currentMediaItem?.localConfiguration?.subtitleConfigurations?.map {
+                            MediaItem.SubtitleConfiguration.Builder(it.uri)
+                                .setMimeType(it.mimeType)
+                                .setLabel(it.label)
+                                .setLanguage(it.language)
+                                .setSelectionFlags(0)
+                                .build()
+                        } ?: listOf()
+                        player.setMediaItem(
+                            MediaItem.Builder()
+                                .setUri(player.currentMediaItem?.localConfiguration?.uri)
+                                .setMimeType(player.currentMediaItem?.localConfiguration?.mimeType)
+                                .setSubtitleConfigurations(currentSubtitleConfigurations
+                                        + MediaItem.SubtitleConfiguration.Builder(state.uri)
+                                    .setMimeType(fileName.toSubtitleMimeType())
+                                    .setLabel(fileName)
+                                    .setLanguage(state.subtitle.languageName)
+                                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                                    .build()
+                                )
+                                .setMediaMetadata(player.mediaMetadata)
+                                .build()
+                        )
+                        UserPreferences.subtitleName = (state.subtitle.languageName ?: fileName).substringBefore(" ")
+                        player.seekTo(currentPosition)
+                        player.play()
+                    }
+                    is PlayerViewModel.State.FailedDownloadingOpenSubtitle -> {
+                        Toast.makeText(
+                            requireContext(),
+                            "${state.subtitle.subFileName}: ${state.error.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }
         }
@@ -216,7 +251,7 @@ class PlayerTvFragment : Fragment() {
             binding.settings.onBackPressed()
         }
 
-        binding.pvPlayer.isControllerVisible -> {
+        binding.pvPlayer.controller.isVisible -> {
             binding.pvPlayer.hideController()
             true
         }
@@ -253,11 +288,11 @@ class PlayerTvFragment : Fragment() {
             setStyle(UserPreferences.captionStyle)
         }
 
-        binding.pvPlayer.controller.tvExoTitle.text = args.title
+        binding.pvPlayer.controller.binding.tvExoTitle.text = args.title
 
-        binding.pvPlayer.controller.tvExoSubtitle.text = args.subtitle
+        binding.pvPlayer.controller.binding.tvExoSubtitle.text = args.subtitle
 
-        binding.pvPlayer.controller.btnExoExternalPlayer.setOnClickListener {
+        binding.pvPlayer.controller.binding.btnExoExternalPlayer.setOnClickListener {
             Toast.makeText(
                 requireContext(),
                 requireContext().getString(R.string.player_external_player_error_video),
@@ -265,9 +300,9 @@ class PlayerTvFragment : Fragment() {
             ).show()
         }
 
-        binding.pvPlayer.controller.exoProgress.setKeyTimeIncrement(10_000)
+        binding.pvPlayer.controller.binding.exoProgress.setKeyTimeIncrement(10_000)
 
-        binding.pvPlayer.controller.btnExoAspectRatio.setOnClickListener {
+        binding.pvPlayer.controller.binding.btnExoAspectRatio.setOnClickListener {
             UserPreferences.playerResize = UserPreferences.playerResize.next()
             binding.pvPlayer.controllerShowTimeoutMs = binding.pvPlayer.controllerShowTimeoutMs
 
@@ -279,7 +314,7 @@ class PlayerTvFragment : Fragment() {
             binding.pvPlayer.resizeMode = UserPreferences.playerResize.resizeMode
         }
 
-        binding.pvPlayer.controller.exoSettings.setOnClickListener {
+        binding.pvPlayer.controller.binding.exoSettings.setOnClickListener {
             binding.pvPlayer.controllerShowTimeoutMs = binding.pvPlayer.controllerShowTimeoutMs
             binding.settings.show()
         }
@@ -299,6 +334,10 @@ class PlayerTvFragment : Fragment() {
                 )
             )
         }
+
+        binding.settings.setOnOpenSubtitleSelectedListener { subtitle ->
+            viewModel.downloadSubtitle(subtitle.openSubtitle)
+        }
     }
 
     private fun displayVideo(video: Video, server: Video.Server) {
@@ -306,18 +345,19 @@ class PlayerTvFragment : Fragment() {
 
         httpDataSource.setDefaultRequestProperties(
             mapOf(
-                "Referer" to video.referer,
                 "User-Agent" to userAgent,
-            ).filterNotNullValues()
+            ) + (video.headers ?: emptyMap())
         )
 
         player.setMediaItem(
             MediaItem.Builder()
                 .setUri(Uri.parse(video.source))
+                .setMimeType(video.type)
                 .setSubtitleConfigurations(video.subtitles.map { subtitle ->
                     MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitle.file))
                         .setMimeType(subtitle.file.toSubtitleMimeType())
                         .setLabel(subtitle.label)
+                        .setSelectionFlags(if (subtitle.default) C.SELECTION_FLAG_DEFAULT else 0)
                         .build()
                 })
                 .setMediaMetadata(
@@ -328,7 +368,7 @@ class PlayerTvFragment : Fragment() {
                 .build()
         )
 
-        binding.pvPlayer.controller.btnExoExternalPlayer.setOnClickListener {
+        binding.pvPlayer.controller.binding.btnExoExternalPlayer.setOnClickListener {
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(Uri.parse(video.source), "video/*")
 
@@ -351,7 +391,7 @@ class PlayerTvFragment : Fragment() {
                 super.onPlaybackStateChanged(playbackState)
 
                 if (playbackState == Player.STATE_READY) {
-                    binding.pvPlayer.controller.exoPlayPause.nextFocusDownId = -1
+                    binding.pvPlayer.controller.binding.exoPlayPause.nextFocusDownId = -1
                 }
             }
 
@@ -388,14 +428,25 @@ class PlayerTvFragment : Fragment() {
 
                     when (val videoType = args.videoType as Video.Type) {
                         is Video.Type.Movie -> {
-                            database.movieDao().update(watchItem as Movie)
+                            val movie = watchItem as Movie
+                            database.movieDao().update(movie)
                         }
 
                         is Video.Type.Episode -> {
+                            val episode = watchItem as Episode
                             if (player.hasFinished()) {
                                 database.episodeDao().resetProgressionFromEpisode(videoType.id)
                             }
-                            database.episodeDao().update(watchItem as Episode)
+                            database.episodeDao().update(episode)
+
+                            episode.tvShow?.let { tvShow ->
+                                database.tvShowDao().getById(tvShow.id)
+                            }?.let { tvShow ->
+                                database.tvShowDao().save(tvShow.copy().apply {
+                                    merge(tvShow)
+                                    isWatching = true
+                                })
+                            }
                         }
                     }
                 }

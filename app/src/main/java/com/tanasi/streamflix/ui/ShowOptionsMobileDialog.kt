@@ -54,10 +54,7 @@ class ShowOptionsMobileDialog(
             .fitCenter()
             .into(binding.ivOptionsShowPoster)
 
-        binding.tvOptionsShowTitle.text = episode.title ?: context.getString(
-            R.string.episode_number,
-            episode.number
-        )
+        binding.tvOptionsShowTitle.text = episode.tvShow?.title ?: ""
 
         binding.tvShowSubtitle.text = episode.season?.takeIf { it.number != 0 }?.let { season ->
             context.getString(
@@ -130,12 +127,19 @@ class ShowOptionsMobileDialog(
                     merge(episode)
                     watchHistory = null
                 })
+                episode.tvShow?.let { tvShow ->
+                    database.tvShowDao().save(tvShow.copy().apply {
+                        merge(tvShow)
+                        isWatching = false
+                    })
+                }
 
                 hide()
             }
 
             visibility = when {
                 episode.watchHistory != null -> View.VISIBLE
+                episode.tvShow?.isWatching ?: false -> View.VISIBLE
                 else -> View.GONE
             }
         }

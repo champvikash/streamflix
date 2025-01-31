@@ -13,12 +13,14 @@ import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
+import com.tanasi.streamflix.BuildConfig
 import com.tanasi.streamflix.R
 import com.tanasi.streamflix.database.AppDatabase
 import com.tanasi.streamflix.databinding.ActivityMainMobileBinding
-import com.tanasi.streamflix.ui.AppLayoutMobileDialog
+import com.tanasi.streamflix.fragments.player.PlayerMobileFragment
 import com.tanasi.streamflix.ui.UpdateAppMobileDialog
 import com.tanasi.streamflix.utils.UserPreferences
+import com.tanasi.streamflix.utils.getCurrentFragment
 import kotlinx.coroutines.launch
 
 class MainMobileActivity : FragmentActivity() {
@@ -43,22 +45,17 @@ class MainMobileActivity : FragmentActivity() {
         UserPreferences.setup(this)
         AppDatabase.setup(this)
 
-        when (val appLayout = UserPreferences.appLayout) {
-            null,
-            UserPreferences.AppLayout.AUTO -> {
+        when (BuildConfig.APP_LAYOUT) {
+            "mobile" -> {}
+            "tv" -> {
+                finish()
+                startActivity(Intent(this, MainTvActivity::class.java))
+            }
+            else -> {
                 if (packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
                     finish()
                     startActivity(Intent(this, MainTvActivity::class.java))
                 }
-                if (appLayout == null) {
-                    AppLayoutMobileDialog(this)
-                        .show()
-                }
-            }
-            UserPreferences.AppLayout.MOBILE -> {}
-            UserPreferences.AppLayout.TV -> {
-                finish()
-                startActivity(Intent(this, MainTvActivity::class.java))
             }
         }
 
@@ -80,7 +77,8 @@ class MainMobileActivity : FragmentActivity() {
                 R.id.search,
                 R.id.home,
                 R.id.movies,
-                R.id.tv_shows -> binding.bnvMain.visibility = View.VISIBLE
+                R.id.tv_shows,
+                R.id.settings -> binding.bnvMain.visibility = View.VISIBLE
                 else -> binding.bnvMain.visibility = View.GONE
             }
         }
@@ -90,15 +88,11 @@ class MainMobileActivity : FragmentActivity() {
                 when (state) {
                     MainViewModel.State.CheckingUpdate -> {}
                     is MainViewModel.State.SuccessCheckingUpdate -> {
-                        val asset = state.newReleases.firstOrNull()?.assets
-                            ?.find { it.contentType == "application/vnd.android.package-archive" }
-                        if (asset != null) {
-                            updateAppDialog = UpdateAppMobileDialog(this@MainMobileActivity, state.newReleases).also {
-                                it.setOnUpdateClickListener { _ ->
-                                    if (!it.isLoading) viewModel.downloadUpdate(this@MainMobileActivity, asset)
-                                }
-                                it.show()
+                        updateAppDialog = UpdateAppMobileDialog(this@MainMobileActivity, state.newReleases).also {
+                            it.setOnUpdateClickListener { _ ->
+                                if (!it.isLoading) viewModel.downloadUpdate(this@MainMobileActivity, state.asset)
                             }
+                            it.show()
                         }
                     }
 
@@ -127,11 +121,20 @@ class MainMobileActivity : FragmentActivity() {
                     R.id.home -> finish()
                     R.id.search,
                     R.id.movies,
-                    R.id.tv_shows -> binding.bnvMain.findViewById<View>(R.id.home).performClick()
+                    R.id.tv_shows,
+                    R.id.settings -> binding.bnvMain.findViewById<View>(R.id.home).performClick()
                     else -> navController.navigateUp()
                         .takeIf { !it }?.let { finish() }
                 }
             }
         })
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+
+        when (val currentFragment = getCurrentFragment()) {
+            is PlayerMobileFragment -> currentFragment.onUserLeaveHint()
+        }
     }
 }

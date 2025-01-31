@@ -17,8 +17,8 @@ class MyFileStorageExtractor : Extractor() {
 
     fun nowTvServer(videoType: Video.Type): Video.Server {
         return Video.Server(
-            id = "NowTv",
-            name = "NowTv",
+            id = name,
+            name = name,
             src = when (videoType) {
                 is Video.Type.Episode -> {
                     val episode = when {
@@ -58,7 +58,9 @@ class MyFileStorageExtractor : Extractor() {
         val video = Video(
             source = url,
             subtitles = emptyList(),
-            referer = "https://bflix.gs/"
+            headers = mapOf(
+                "Referer" to "https://bflix.gs/",
+            ),
         )
 
         return video

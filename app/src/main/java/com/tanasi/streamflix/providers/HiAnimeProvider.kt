@@ -23,9 +23,11 @@ import java.util.concurrent.TimeUnit
 
 object HiAnimeProvider : Provider {
 
+    private const val URL = "https://hianime.to/"
+
     override val name = "HiAnime"
-    override val logo = "https://hianime.to/images/logo.png"
-    val url = "https://hianime.to/"
+    override val logo = "$URL/images/logo.png"
+    override val language = "en"
 
     private val service = HiAnimeService.build()
 
@@ -645,8 +647,6 @@ object HiAnimeProvider : Provider {
                 )
             }
 
-        if (servers.isEmpty()) throw Exception("No links found")
-
         return servers
     }
 
@@ -667,7 +667,7 @@ object HiAnimeProvider : Provider {
                     .build()
 
                 val retrofit = Retrofit.Builder()
-                    .baseUrl(url)
+                    .baseUrl(URL)
                     .addConverterFactory(JsoupConverterFactory.create())
                     .addConverterFactory(GsonConverterFactory.create())
                     .client(client)

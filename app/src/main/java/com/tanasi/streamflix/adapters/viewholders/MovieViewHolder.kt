@@ -13,8 +13,8 @@ import com.bumptech.glide.Glide
 import com.tanasi.streamflix.R
 import com.tanasi.streamflix.adapters.AppAdapter
 import com.tanasi.streamflix.database.AppDatabase
-import com.tanasi.streamflix.databinding.ContentMovieCastsMobileBinding
-import com.tanasi.streamflix.databinding.ContentMovieCastsTvBinding
+import com.tanasi.streamflix.databinding.ContentMovieCastMobileBinding
+import com.tanasi.streamflix.databinding.ContentMovieCastTvBinding
 import com.tanasi.streamflix.databinding.ContentMovieMobileBinding
 import com.tanasi.streamflix.databinding.ContentMovieRecommendationsMobileBinding
 import com.tanasi.streamflix.databinding.ContentMovieRecommendationsTvBinding
@@ -62,6 +62,7 @@ import com.tanasi.streamflix.utils.dp
 import com.tanasi.streamflix.utils.format
 import com.tanasi.streamflix.utils.getCurrentFragment
 import com.tanasi.streamflix.utils.toActivity
+import java.util.Locale
 
 class MovieViewHolder(
     private val _binding: ViewBinding
@@ -75,8 +76,8 @@ class MovieViewHolder(
 
     val childRecyclerView: RecyclerView?
         get() = when (_binding) {
-            is ContentMovieCastsMobileBinding -> _binding.rvMovieCasts
-            is ContentMovieCastsTvBinding -> _binding.hgvMovieCasts
+            is ContentMovieCastMobileBinding -> _binding.rvMovieCast
+            is ContentMovieCastTvBinding -> _binding.hgvMovieCast
             is ContentMovieRecommendationsMobileBinding -> _binding.rvMovieRecommendations
             is ContentMovieRecommendationsTvBinding -> _binding.hgvMovieRecommendations
             else -> null
@@ -94,8 +95,8 @@ class MovieViewHolder(
 
             is ContentMovieMobileBinding -> displayMovieMobile(_binding)
             is ContentMovieTvBinding -> displayMovieTv(_binding)
-            is ContentMovieCastsMobileBinding -> displayCastsMobile(_binding)
-            is ContentMovieCastsTvBinding -> displayCastsTv(_binding)
+            is ContentMovieCastMobileBinding -> displayCastMobile(_binding)
+            is ContentMovieCastTvBinding -> displayCastTv(_binding)
             is ContentMovieRecommendationsMobileBinding -> displayRecommendationsMobile(_binding)
             is ContentMovieRecommendationsTvBinding -> displayRecommendationsTv(_binding)
         }
@@ -437,7 +438,7 @@ class MovieViewHolder(
         }
 
         binding.tvSwiperRating.apply {
-            text = movie.rating?.let { String.format("%.1f", it) } ?: "N/A"
+            text = movie.rating?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "N/A"
             visibility = when {
                 text.isNullOrEmpty() -> View.GONE
                 else -> View.VISIBLE
@@ -495,7 +496,7 @@ class MovieViewHolder(
 
         binding.tvMovieTitle.text = movie.title
 
-        binding.tvMovieRating.text = movie.rating?.let { String.format("%.1f", it) } ?: "N/A"
+        binding.tvMovieRating.text = movie.rating?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "N/A"
 
         binding.tvMovieQuality.apply {
             text = movie.quality
@@ -573,13 +574,22 @@ class MovieViewHolder(
             }
         }
 
-        binding.btnMovieTrailer.setOnClickListener {
-            context.startActivity(
-                Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.parse(movie.trailer)
+        binding.btnMovieTrailer.apply {
+            val trailer = movie.trailer
+
+            setOnClickListener {
+                context.startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse(trailer)
+                    )
                 )
-            )
+            }
+
+            visibility = when {
+                trailer != null -> View.VISIBLE
+                else -> View.GONE
+            }
         }
 
         binding.btnMovieFavorite.apply {
@@ -616,7 +626,7 @@ class MovieViewHolder(
 
         binding.tvMovieTitle.text = movie.title
 
-        binding.tvMovieRating.text = movie.rating?.let { String.format("%.1f", it) } ?: "N/A"
+        binding.tvMovieRating.text = movie.rating?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "N/A"
 
         binding.tvMovieQuality.apply {
             text = movie.quality
@@ -694,13 +704,22 @@ class MovieViewHolder(
             }
         }
 
-        binding.btnMovieTrailer.setOnClickListener {
-            context.startActivity(
-                Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.parse(movie.trailer)
+        binding.btnMovieTrailer.apply {
+            val trailer = movie.trailer
+
+            setOnClickListener {
+                context.startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse(trailer)
+                    )
                 )
-            )
+            }
+
+            visibility = when {
+                trailer != null -> View.VISIBLE
+                else -> View.GONE
+            }
         }
 
         binding.btnMovieFavorite.apply {
@@ -724,8 +743,8 @@ class MovieViewHolder(
         }
     }
 
-    private fun displayCastsMobile(binding: ContentMovieCastsMobileBinding) {
-        binding.rvMovieCasts.apply {
+    private fun displayCastMobile(binding: ContentMovieCastMobileBinding) {
+        binding.rvMovieCast.apply {
             adapter = AppAdapter().apply {
                 submitList(movie.cast.onEach {
                     it.itemType = AppAdapter.Type.PEOPLE_MOBILE_ITEM
@@ -737,8 +756,8 @@ class MovieViewHolder(
         }
     }
 
-    private fun displayCastsTv(binding: ContentMovieCastsTvBinding) {
-        binding.hgvMovieCasts.apply {
+    private fun displayCastTv(binding: ContentMovieCastTvBinding) {
+        binding.hgvMovieCast.apply {
             setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT)
             adapter = AppAdapter().apply {
                 submitList(movie.cast.onEach {

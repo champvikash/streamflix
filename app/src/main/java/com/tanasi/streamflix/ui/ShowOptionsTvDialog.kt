@@ -61,22 +61,25 @@ class ShowOptionsTvDialog(
             .fitCenter()
             .into(binding.ivOptionsShowPoster)
 
-        binding.tvOptionsShowTitle.text = episode.title ?: context.getString(
-            R.string.episode_number,
-            episode.number
-        )
+        binding.tvOptionsShowTitle.text = episode.tvShow?.title ?: ""
 
         binding.tvShowSubtitle.text = episode.season?.takeIf { it.number != 0 }?.let { season ->
             context.getString(
                 R.string.episode_item_info,
                 season.number,
                 episode.number,
-               ""
+                episode.title ?: context.getString(
+                    R.string.episode_number,
+                    episode.number
+                )
             )
         } ?: context.getString(
             R.string.episode_item_info_episode_only,
             episode.number,
-            ""
+            episode.title ?: context.getString(
+                R.string.episode_number,
+                episode.number
+            )
         )
 
 
@@ -98,6 +101,8 @@ class ShowOptionsTvDialog(
                 is HomeTvFragment -> View.VISIBLE
                 else -> View.GONE
             }
+
+            requestFocus()
         }
 
         binding.btnOptionShowFavorite.visibility = View.GONE
@@ -131,12 +136,19 @@ class ShowOptionsTvDialog(
                     merge(episode)
                     watchHistory = null
                 })
+                episode.tvShow?.let { tvShow ->
+                    database.tvShowDao().save(tvShow.copy().apply {
+                        merge(tvShow)
+                        isWatching = false
+                    })
+                }
 
                 hide()
             }
 
             visibility = when {
                 episode.watchHistory != null -> View.VISIBLE
+                episode.tvShow?.isWatching ?: false -> View.VISIBLE
                 else -> View.GONE
             }
         }
@@ -171,6 +183,8 @@ class ShowOptionsTvDialog(
                 else -> context.getString(R.string.option_show_favorite)
             }
             visibility = View.VISIBLE
+
+            requestFocus()
         }
 
         binding.btnOptionShowWatched.apply {
@@ -242,6 +256,8 @@ class ShowOptionsTvDialog(
                 else -> context.getString(R.string.option_show_favorite)
             }
             visibility = View.VISIBLE
+
+            requestFocus()
         }
 
         binding.btnOptionShowWatched.visibility = View.GONE

@@ -6,7 +6,8 @@ import kotlinx.parcelize.Parcelize
 data class Video(
     val source: String,
     val subtitles: List<Subtitle> = listOf(),
-    val referer: String? = null,
+    val headers: Map<String, String>? = null,
+    val type: String? = null // androidx.media3.common.MimeTypes - https://developer.android.com/reference/kotlin/androidx/media3/common/MimeTypes
 ) {
 
     sealed class Type : Parcelable {
@@ -46,6 +47,7 @@ data class Video(
     data class Subtitle(
         val label: String,
         val file: String,
+        var default: Boolean = false,
     )
 
     data class Server(

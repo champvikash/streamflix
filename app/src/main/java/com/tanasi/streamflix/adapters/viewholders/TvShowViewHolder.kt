@@ -13,8 +13,8 @@ import com.bumptech.glide.Glide
 import com.tanasi.streamflix.R
 import com.tanasi.streamflix.adapters.AppAdapter
 import com.tanasi.streamflix.database.AppDatabase
-import com.tanasi.streamflix.databinding.ContentTvShowCastsMobileBinding
-import com.tanasi.streamflix.databinding.ContentTvShowCastsTvBinding
+import com.tanasi.streamflix.databinding.ContentTvShowCastMobileBinding
+import com.tanasi.streamflix.databinding.ContentTvShowCastTvBinding
 import com.tanasi.streamflix.databinding.ContentTvShowMobileBinding
 import com.tanasi.streamflix.databinding.ContentTvShowRecommendationsMobileBinding
 import com.tanasi.streamflix.databinding.ContentTvShowRecommendationsTvBinding
@@ -64,6 +64,7 @@ import com.tanasi.streamflix.utils.dp
 import com.tanasi.streamflix.utils.format
 import com.tanasi.streamflix.utils.getCurrentFragment
 import com.tanasi.streamflix.utils.toActivity
+import java.util.Locale
 
 class TvShowViewHolder(
     private val _binding: ViewBinding
@@ -79,8 +80,8 @@ class TvShowViewHolder(
         get() = when (_binding) {
             is ContentTvShowSeasonsMobileBinding -> _binding.rvTvShowSeasons
             is ContentTvShowSeasonsTvBinding -> _binding.hgvTvShowSeasons
-            is ContentTvShowCastsMobileBinding -> _binding.rvTvShowCasts
-            is ContentTvShowCastsTvBinding -> _binding.hgvTvShowCasts
+            is ContentTvShowCastMobileBinding -> _binding.rvTvShowCast
+            is ContentTvShowCastTvBinding -> _binding.hgvTvShowCast
             is ContentTvShowRecommendationsMobileBinding -> _binding.rvTvShowRecommendations
             is ContentTvShowRecommendationsTvBinding -> _binding.hgvTvShowRecommendations
             else -> null
@@ -100,8 +101,8 @@ class TvShowViewHolder(
             is ContentTvShowTvBinding -> displayTvShowTv(_binding)
             is ContentTvShowSeasonsMobileBinding -> displaySeasonsMobile(_binding)
             is ContentTvShowSeasonsTvBinding -> displaySeasonsTv(_binding)
-            is ContentTvShowCastsMobileBinding -> displayCastsMobile(_binding)
-            is ContentTvShowCastsTvBinding -> displayCastsTv(_binding)
+            is ContentTvShowCastMobileBinding -> displayCastMobile(_binding)
+            is ContentTvShowCastTvBinding -> displayCastTv(_binding)
             is ContentTvShowRecommendationsMobileBinding -> displayRecommendationsMobile(_binding)
             is ContentTvShowRecommendationsTvBinding -> displayRecommendationsTv(_binding)
         }
@@ -431,7 +432,7 @@ class TvShowViewHolder(
         }
 
         binding.tvSwiperRating.apply {
-            text = tvShow.rating?.let { String.format("%.1f", it) } ?: "N/A"
+            text = tvShow.rating?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "N/A"
             visibility = when {
                 text.isNullOrEmpty() -> View.GONE
                 else -> View.VISIBLE
@@ -479,7 +480,7 @@ class TvShowViewHolder(
 
         binding.tvTvShowTitle.text = tvShow.title
 
-        binding.tvTvShowRating.text = tvShow.rating?.let { String.format("%.1f", it) } ?: "N/A"
+        binding.tvTvShowRating.text = tvShow.rating?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "N/A"
 
         binding.tvTvShowQuality.apply {
             text = tvShow.quality
@@ -526,48 +527,39 @@ class TvShowViewHolder(
 
         binding.tvTvShowOverview.text = tvShow.overview
 
-        val episodes = tvShow.seasons.flatMap { it.episodes }
-        val episode = episodes
-            .filter { it.watchHistory != null }
-            .sortedByDescending { it.watchHistory?.lastEngagementTimeUtcMillis }
-            .firstOrNull()
-            ?: episodes.indexOfLast { it.isWatched }
-                .takeIf { it != -1 && it + 1 < episodes.size }
-                ?.let { episodes.getOrNull(it + 1) }
-            ?: tvShow.seasons.firstOrNull { it.number != 0 }?.episodes?.firstOrNull()
-            ?: episodes.firstOrNull()
+        val episodeToWatch = tvShow.episodeToWatch
 
         binding.btnTvShowWatchEpisode.apply {
             setOnClickListener {
-                if (episode == null) return@setOnClickListener
+                if (episodeToWatch == null) return@setOnClickListener
 
                 findNavController().navigate(
                     TvShowMobileFragmentDirections.actionTvShowToPlayer(
-                        id = episode.id,
+                        id = episodeToWatch.id,
                         title = tvShow.title,
-                        subtitle = episode.season?.takeIf { it.number != 0 }?.let { season ->
+                        subtitle = episodeToWatch.season?.takeIf { it.number != 0 }?.let { season ->
                             context.getString(
                                 R.string.player_subtitle_tv_show,
                                 season.number,
-                                episode.number,
-                                episode.title ?: context.getString(
+                                episodeToWatch.number,
+                                episodeToWatch.title ?: context.getString(
                                     R.string.episode_number,
-                                    episode.number
+                                    episodeToWatch.number
                                 )
                             )
                         } ?: context.getString(
                             R.string.player_subtitle_tv_show_episode_only,
-                            episode.number,
-                            episode.title ?: context.getString(
+                            episodeToWatch.number,
+                            episodeToWatch.title ?: context.getString(
                                 R.string.episode_number,
-                                episode.number
+                                episodeToWatch.number
                             )
                         ),
                         videoType = Video.Type.Episode(
-                            id = episode.id,
-                            number = episode.number,
-                            title = episode.title,
-                            poster = episode.poster,
+                            id = episodeToWatch.id,
+                            number = episodeToWatch.number,
+                            title = episodeToWatch.title,
+                            poster = episodeToWatch.poster,
                             tvShow = Video.Type.Episode.TvShow(
                                 id = tvShow.id,
                                 title = tvShow.title,
@@ -575,41 +567,41 @@ class TvShowViewHolder(
                                 banner = tvShow.banner,
                             ),
                             season = Video.Type.Episode.Season(
-                                number = episode.season?.number ?: 0,
-                                title = episode.season?.title,
+                                number = episodeToWatch.season?.number ?: 0,
+                                title = episodeToWatch.season?.title,
                             ),
                         ),
                     )
                 )
             }
 
-            text = if (episode != null) {
-                episode.season?.takeIf { it.number != 0 }?.let { season ->
+            text = if (episodeToWatch != null) {
+                episodeToWatch.season?.takeIf { it.number != 0 }?.let { season ->
                     context.getString(
                         R.string.tv_show_watch_season_episode,
                         season.number,
-                        episode.number
+                        episodeToWatch.number
                     )
                 } ?: context.getString(
                     R.string.tv_show_watch_episode,
-                    episode.number
+                    episodeToWatch.number
                 )
             } else ""
             visibility = when {
-                episode != null -> View.VISIBLE
+                episodeToWatch != null -> View.VISIBLE
                 else -> View.GONE
             }
         }
 
         binding.pbTvShowWatchEpisodeLoading.apply {
             visibility = when {
-                episode != null -> View.GONE
+                episodeToWatch != null -> View.GONE
                 else -> View.VISIBLE
             }
         }
 
         binding.pbTvShowProgressEpisode.apply {
-            val watchHistory = episode?.watchHistory
+            val watchHistory = episodeToWatch?.watchHistory
 
             progress = when {
                 watchHistory != null -> (watchHistory.lastPlaybackPositionMillis * 100 / watchHistory.durationMillis.toDouble()).toInt()
@@ -621,13 +613,22 @@ class TvShowViewHolder(
             }
         }
 
-        binding.btnTvShowTrailer.setOnClickListener {
-            context.startActivity(
-                Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.parse(tvShow.trailer)
+        binding.btnTvShowTrailer.apply {
+            val trailer = tvShow.trailer
+
+            setOnClickListener {
+                context.startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse(trailer)
+                    )
                 )
-            )
+            }
+
+            visibility = when {
+                trailer != null -> View.VISIBLE
+                else -> View.GONE
+            }
         }
 
         binding.btnTvShowFavorite.apply {
@@ -664,7 +665,7 @@ class TvShowViewHolder(
 
         binding.tvTvShowTitle.text = tvShow.title
 
-        binding.tvTvShowRating.text = tvShow.rating?.let { String.format("%.1f", it) } ?: "N/A"
+        binding.tvTvShowRating.text = tvShow.rating?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "N/A"
 
         binding.tvTvShowQuality.apply {
             text = tvShow.quality
@@ -711,48 +712,39 @@ class TvShowViewHolder(
 
         binding.tvTvShowOverview.text = tvShow.overview
 
-        val episodes = tvShow.seasons.flatMap { it.episodes }
-        val episode = episodes
-            .filter { it.watchHistory != null }
-            .sortedByDescending { it.watchHistory?.lastEngagementTimeUtcMillis }
-            .firstOrNull()
-            ?: episodes.indexOfLast { it.isWatched }
-                .takeIf { it != -1 && it + 1 < episodes.size }
-                ?.let { episodes.getOrNull(it + 1) }
-            ?: tvShow.seasons.firstOrNull { it.number != 0 }?.episodes?.firstOrNull()
-            ?: episodes.firstOrNull()
+        val episodeToWatch = tvShow.episodeToWatch
 
         binding.btnTvShowWatchEpisode.apply {
             setOnClickListener {
-                if (episode == null) return@setOnClickListener
+                if (episodeToWatch == null) return@setOnClickListener
 
                 findNavController().navigate(
                     TvShowTvFragmentDirections.actionTvShowToPlayer(
-                        id = episode.id,
+                        id = episodeToWatch.id,
                         title = tvShow.title,
-                        subtitle = episode.season?.takeIf { it.number != 0 }?.let { season ->
+                        subtitle = episodeToWatch.season?.takeIf { it.number != 0 }?.let { season ->
                             context.getString(
                                 R.string.player_subtitle_tv_show,
                                 season.number,
-                                episode.number,
-                                episode.title ?: context.getString(
+                                episodeToWatch.number,
+                                episodeToWatch.title ?: context.getString(
                                     R.string.episode_number,
-                                    episode.number
+                                    episodeToWatch.number
                                 )
                             )
                         } ?: context.getString(
                             R.string.player_subtitle_tv_show_episode_only,
-                            episode.number,
-                            episode.title ?: context.getString(
+                            episodeToWatch.number,
+                            episodeToWatch.title ?: context.getString(
                                 R.string.episode_number,
-                                episode.number
+                                episodeToWatch.number
                             )
                         ),
                         videoType = Video.Type.Episode(
-                            id = episode.id,
-                            number = episode.number,
-                            title = episode.title,
-                            poster = episode.poster,
+                            id = episodeToWatch.id,
+                            number = episodeToWatch.number,
+                            title = episodeToWatch.title,
+                            poster = episodeToWatch.poster,
                             tvShow = Video.Type.Episode.TvShow(
                                 id = tvShow.id,
                                 title = tvShow.title,
@@ -760,41 +752,41 @@ class TvShowViewHolder(
                                 banner = tvShow.banner,
                             ),
                             season = Video.Type.Episode.Season(
-                                number = episode.season?.number ?: 0,
-                                title = episode.season?.title,
+                                number = episodeToWatch.season?.number ?: 0,
+                                title = episodeToWatch.season?.title,
                             ),
                         ),
                     )
                 )
             }
 
-            text = if (episode != null) {
-                episode.season?.takeIf { it.number != 0 }?.let { season ->
+            text = if (episodeToWatch != null) {
+                episodeToWatch.season?.takeIf { it.number != 0 }?.let { season ->
                     context.getString(
                         R.string.tv_show_watch_season_episode,
                         season.number,
-                        episode.number
+                        episodeToWatch.number
                     )
                 } ?: context.getString(
                     R.string.tv_show_watch_episode,
-                    episode.number
+                    episodeToWatch.number
                 )
             } else ""
             visibility = when {
-                episode != null -> View.VISIBLE
+                episodeToWatch != null -> View.VISIBLE
                 else -> View.GONE
             }
         }
 
         binding.pbTvShowWatchEpisodeLoading.apply {
             visibility = when {
-                episode != null -> View.GONE
+                episodeToWatch != null -> View.GONE
                 else -> View.VISIBLE
             }
         }
 
         binding.pbTvShowProgressEpisode.apply {
-            val watchHistory = episode?.watchHistory
+            val watchHistory = episodeToWatch?.watchHistory
 
             progress = when {
                 watchHistory != null -> (watchHistory.lastPlaybackPositionMillis * 100 / watchHistory.durationMillis.toDouble()).toInt()
@@ -806,13 +798,22 @@ class TvShowViewHolder(
             }
         }
 
-        binding.btnTvShowTrailer.setOnClickListener {
-            context.startActivity(
-                Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.parse(tvShow.trailer)
+        binding.btnTvShowTrailer.apply {
+            val trailer = tvShow.trailer
+
+            setOnClickListener {
+                context.startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse(trailer)
+                    )
                 )
-            )
+            }
+
+            visibility = when {
+                trailer != null -> View.VISIBLE
+                else -> View.GONE
+            }
         }
 
         binding.btnTvShowFavorite.apply {
@@ -861,8 +862,8 @@ class TvShowViewHolder(
         }
     }
 
-    private fun displayCastsMobile(binding: ContentTvShowCastsMobileBinding) {
-        binding.rvTvShowCasts.apply {
+    private fun displayCastMobile(binding: ContentTvShowCastMobileBinding) {
+        binding.rvTvShowCast.apply {
             adapter = AppAdapter().apply {
                 submitList(tvShow.cast.onEach {
                     it.itemType = AppAdapter.Type.PEOPLE_MOBILE_ITEM
@@ -874,8 +875,8 @@ class TvShowViewHolder(
         }
     }
 
-    private fun displayCastsTv(binding: ContentTvShowCastsTvBinding) {
-        binding.hgvTvShowCasts.apply {
+    private fun displayCastTv(binding: ContentTvShowCastTvBinding) {
+        binding.hgvTvShowCast.apply {
             setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT)
             adapter = AppAdapter().apply {
                 submitList(tvShow.cast.onEach {

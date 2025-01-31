@@ -19,6 +19,7 @@ import com.tanasi.streamflix.databinding.FragmentPeopleTvBinding
 import com.tanasi.streamflix.models.Movie
 import com.tanasi.streamflix.models.People
 import com.tanasi.streamflix.models.TvShow
+import com.tanasi.streamflix.utils.format
 import com.tanasi.streamflix.utils.viewModelsFactory
 import kotlinx.coroutines.launch
 
@@ -101,15 +102,36 @@ class PeopleTvFragment : Fragment() {
     }
 
     private fun displayPeople(people: People, hasMore: Boolean) {
-        binding.tvPeopleName.text = people.name
+        binding.tvPeopleName.text = people.name.takeIf { it.isNotEmpty() } ?: args.name
 
         binding.ivPeopleImage.apply {
             clipToOutline = true
             Glide.with(context)
-                .load(people.image)
+                .load(people.image ?: args.image)
                 .placeholder(R.drawable.ic_person_placeholder)
                 .centerCrop()
                 .into(this)
+        }
+
+        binding.tvPeopleBirthday.text = people.birthday?.format("MMMM dd, yyyy")
+
+        binding.gPeopleBirthday.visibility = when {
+            binding.tvPeopleBirthday.text.isNullOrEmpty() -> View.GONE
+            else -> View.VISIBLE
+        }
+
+        binding.tvPeopleDeathday.text = people.deathday?.format("MMMM dd, yyyy")
+
+        binding.gPeopleDeathday.visibility = when {
+            binding.tvPeopleDeathday.text.isNullOrEmpty() -> View.GONE
+            else -> View.VISIBLE
+        }
+
+        binding.tvPeopleBirthplace.text = people.placeOfBirth
+
+        binding.gPeopleBirthplace.visibility = when {
+            binding.tvPeopleBirthplace.text.isNullOrEmpty() -> View.GONE
+            else -> View.VISIBLE
         }
 
         appAdapter.submitList(people.filmography.onEach {

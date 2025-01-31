@@ -27,8 +27,12 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
         combine(
             database.movieDao().getWatchingMovies(),
             database.episodeDao().getWatchingEpisodes(),
-        ) { watchingMovies, watchingEpisodes ->
+            database.episodeDao().getNextEpisodesToWatch(),
+        ) { watchingMovies, watchingEpisodes, watchNextEpisodes ->
             watchingMovies + watchingEpisodes.onEach { episode ->
+                episode.tvShow = episode.tvShow?.let { database.tvShowDao().getById(it.id) }
+                episode.season = episode.season?.let { database.seasonDao().getById(it.id) }
+            } + watchNextEpisodes.onEach { episode ->
                 episode.tvShow = episode.tvShow?.let { database.tvShowDao().getById(it.id) }
                 episode.season = episode.season?.let { database.seasonDao().getById(it.id) }
             }
@@ -86,7 +90,10 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
                     Category(
                         name = Category.CONTINUE_WATCHING,
                         list = continueWatching
-                            .sortedByDescending { it.watchHistory?.lastEngagementTimeUtcMillis }
+                            .sortedByDescending {
+                                it.watchHistory?.lastEngagementTimeUtcMillis
+                                    ?: it.watchedDate?.timeInMillis
+                            }
                             .distinctBy {
                                 when (it) {
                                     is Episode -> it.tvShow?.id

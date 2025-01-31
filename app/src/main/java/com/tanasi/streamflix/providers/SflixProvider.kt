@@ -24,9 +24,11 @@ import java.util.concurrent.TimeUnit
 
 object SflixProvider : Provider {
 
+    private const val URL = "https://sflix.to/"
+
     override val name = "SFlix"
     override val logo = "https://img.sflix.to/xxrz/400x400/100/66/35/66356c25ce98cb12993249e21742b129/66356c25ce98cb12993249e21742b129.png"
-    val url = "https://sflix.to/"
+    override val language = "en"
 
     private val service = SflixService.build()
 
@@ -380,7 +382,7 @@ object SflixProvider : Provider {
                     )
                 } ?: listOf(),
             cast = document.select("div.elements > .row > div > .row-line")
-                .find { it.select(".type").text().contains("Casts") }
+                .find { it.select(".type").text().contains("Cast") }
                 ?.select("a")?.map {
                     People(
                         id = it.attr("href").substringAfter("/cast/"),
@@ -482,7 +484,7 @@ object SflixProvider : Provider {
                     )
                 } ?: listOf(),
             cast = document.select("div.elements > .row > div > .row-line")
-                .find { it.select(".type").text().contains("Casts") }
+                .find { it.select(".type").text().contains("Cast") }
                 ?.select("a")?.map {
                     People(
                         id = it.attr("href").substringAfter("/cast/"),
@@ -731,7 +733,7 @@ object SflixProvider : Provider {
                     .build()
 
                 val retrofit = Retrofit.Builder()
-                    .baseUrl(url)
+                    .baseUrl(URL)
                     .addConverterFactory(JsoupConverterFactory.create())
                     .addConverterFactory(GsonConverterFactory.create())
                     .client(client)

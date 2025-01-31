@@ -46,11 +46,15 @@ import kotlin.math.min
 
 fun String.toCalendar(): Calendar? {
     val patterns = listOf(
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ENGLISH),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'", Locale.ENGLISH),
         SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH),
         SimpleDateFormat("d MMMM yyyy ('USA')", Locale.ENGLISH),
+        SimpleDateFormat("d MMMM yyyy", Locale.FRENCH),
         SimpleDateFormat("yyyy", Locale.ENGLISH),
         SimpleDateFormat("MMM d, yyyy", Locale.ENGLISH),
         SimpleDateFormat("MMMM d, yyyy ('United' 'States')", Locale.ENGLISH),
+        SimpleDateFormat("MMM. d, yyyy", Locale.ENGLISH),
     )
     patterns.forEach { sdf ->
         try {
@@ -274,7 +278,7 @@ fun String.toSubtitleMimeType(): String {
     }
 }
 
-inline fun <reified T: Enum<T>> T.next(): T {
+inline fun <reified T : Enum<T>> T.next(): T {
     val values = enumValues<T>()
     val nextOrdinal = (ordinal + 1) % values.size
     return values[nextOrdinal]
@@ -309,3 +313,6 @@ private fun ContentResolver.getContentFileName(uri: Uri): String? = runCatching 
             ?.let { cursor.getString(it) }
     }
 }.getOrNull()
+
+operator fun <K, V> Map<out K, V>.plus(map: Map<out K, V>): Map<K, V> =
+    LinkedHashMap(this).apply { putAll(map) }

@@ -28,6 +28,7 @@ import com.tanasi.streamflix.ui.SpacingItemDecoration
 import com.tanasi.streamflix.utils.format
 import com.tanasi.streamflix.utils.getCurrentFragment
 import com.tanasi.streamflix.utils.toActivity
+import java.util.Locale
 
 class CategoryViewHolder(
     private val _binding: ViewBinding
@@ -96,10 +97,10 @@ class CategoryViewHolder(
         }
 
         val items = listOf(
-            listOf(category.list.lastOrNull()),
+            listOfNotNull(category.list.lastOrNull()),
             category.list,
-            listOf(category.list.firstOrNull()),
-        ).flatten().filterNotNull()
+            listOfNotNull(category.list.firstOrNull()),
+        ).flatten()
         binding.vpCategorySwiper.apply {
             adapter = AppAdapter().apply {
                 submitList(category.list)
@@ -156,18 +157,11 @@ class CategoryViewHolder(
     private fun displayTvSwiper(binding: ContentCategorySwiperTvBinding) {
         val selected = category.list.getOrNull(category.selectedIndex) as? Show ?: return
 
-        val handler = Handler(Looper.getMainLooper())
-        handler.postDelayed(8_000) {
-            category.selectedIndex = (category.selectedIndex + 1) % category.list.size
-            if (binding.btnSwiperWatchNow.hasFocus()) {
-                when (val fragment = context.toActivity()?.getCurrentFragment()) {
-                    is HomeTvFragment -> when (val it = category.list[category.selectedIndex]) {
-                        is Movie -> fragment.updateBackground(it.banner)
-                        is TvShow -> fragment.updateBackground(it.banner)
-                    }
-                }
+        when (val fragment = context.toActivity()?.getCurrentFragment()) {
+            is HomeTvFragment -> when (selected) {
+                is Movie -> fragment.updateBackground(selected.banner, null)
+                is TvShow -> fragment.updateBackground(selected.banner, null)
             }
-            bindingAdapter?.notifyItemChanged(bindingAdapterPosition)
         }
 
         binding.tvSwiperTitle.text = when (selected) {
@@ -221,8 +215,8 @@ class CategoryViewHolder(
 
         binding.tvSwiperRating.apply {
             text = when (selected) {
-                is Movie -> selected.rating?.let { String.format("%.1f", it) }
-                is TvShow -> selected.rating?.let { String.format("%.1f", it) }
+                is Movie -> selected.rating?.let { String.format(Locale.ROOT, "%.1f", it) }
+                is TvShow -> selected.rating?.let { String.format(Locale.ROOT, "%.1f", it) }
             }
             visibility = when {
                 text.isNullOrEmpty() -> View.GONE
@@ -242,8 +236,8 @@ class CategoryViewHolder(
                 if (hasFocus) {
                     when (val fragment = context.toActivity()?.getCurrentFragment()) {
                         is HomeTvFragment -> when (selected) {
-                            is Movie -> fragment.updateBackground(selected.banner)
-                            is TvShow -> fragment.updateBackground(selected.banner)
+                            is Movie -> fragment.updateBackground(selected.banner, true)
+                            is TvShow -> fragment.updateBackground(selected.banner, true)
                         }
                     }
                 }
@@ -252,12 +246,14 @@ class CategoryViewHolder(
                 if (event.action == KeyEvent.ACTION_DOWN) {
                     when (event.keyCode) {
                         KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                            handler.removeCallbacksAndMessages(null)
+                            when (val fragment = context.toActivity()?.getCurrentFragment()) {
+                                is HomeTvFragment -> fragment.resetSwiperSchedule()
+                            }
                             category.selectedIndex = (category.selectedIndex + 1) % category.list.size
                             when (val fragment = context.toActivity()?.getCurrentFragment()) {
                                 is HomeTvFragment -> when (val it = category.list[category.selectedIndex]) {
-                                    is Movie -> fragment.updateBackground(it.banner)
-                                    is TvShow -> fragment.updateBackground(it.banner)
+                                    is Movie -> fragment.updateBackground(it.banner, true)
+                                    is TvShow -> fragment.updateBackground(it.banner, true)
                                 }
                             }
                             bindingAdapter?.notifyItemChanged(bindingAdapterPosition)
@@ -268,7 +264,6 @@ class CategoryViewHolder(
                 false
             }
             setOnClickListener {
-                handler.removeCallbacksAndMessages(null)
                 findNavController().navigate(
                     when (selected) {
                         is Movie -> HomeTvFragmentDirections.actionHomeToMovie(selected.id)
